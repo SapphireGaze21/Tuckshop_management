@@ -133,7 +133,6 @@ void* handle_client(void* arg) {
 
     while (running) {
         memset(buffer, 0, sizeof(buffer));
-
         //read client
         int bytes = read(sock, buffer, sizeof(buffer) - 1);
         if (bytes <= 0) {
@@ -176,10 +175,14 @@ void* handle_client(void* arg) {
             }
             char item[50];
             sscanf(buffer, "PLACE_ORDER %s", item);
-
-            // TEMP behavior
-            printf("User %s ordered %s\n", session.username, item);
-            write(sock, "Order placed\n", 13);
+            int order_id = add_order(session.username, item);
+            if (order_id < 0) {
+                write(sock, "Order failed\n", 13);
+            } else {
+                char msg[100];
+                sprintf(msg, "Order placed. ID: %d\n", order_id);
+                write(sock, msg, strlen(msg));
+            }
         }
 
         else if (strncmp(buffer, "VIEW_STATUS", 11) == 0) {
@@ -187,7 +190,11 @@ void* handle_client(void* arg) {
                 write(sock, "Please login first\n", 20);
                 continue;
             }
-            write(sock, "Status: Processing\n", 20);
+            int order_id;
+            sscanf(buffer, "VIEW_STATUS %d", &order_id);
+            char result[100];
+            get_order_status(order_id, result);
+            write(sock, result, strlen(result));
         }
     }
     close(sock);

@@ -57,3 +57,61 @@ int signup(char* username, char* password, char* role) {
     close(fd);
     return 1;
 }
+
+int get_next_order_id() {
+    FILE* file = fopen("orders.txt", "r");
+    if (!file) return 1;
+
+    int id = 0, last_id = 0;
+    char user[50], item[50], status[20];
+
+    while (fscanf(file, "%d %s %s %s", &id, user, item, status) != EOF) {
+        last_id = id;
+    }
+
+    fclose(file);
+    return last_id + 1;
+}
+
+int add_order(char* username, char* item) {
+    int fd = open("orders.txt", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd < 0) return -1;
+
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+
+    // lock file
+    fcntl(fd, F_SETLKW, &lock);
+    int order_id = get_next_order_id();
+    char buffer[200];
+    snprintf(buffer, sizeof(buffer), "%d %s %s PLACED\n", order_id, username, item);
+    write(fd, buffer, strlen(buffer));
+    // unlock
+    lock.l_type = F_UNLCK;
+    fcntl(fd, F_SETLK, &lock);
+
+    close(fd);
+    return order_id;
+}
+
+void get_order_status(int order_id, char* result) {
+    FILE* file = fopen("orders.txt", "r");
+    if (!file) {
+        strcpy(result, "No orders found\n");
+        return;
+    }
+    int id;
+    char user[50], item[50], status[20];
+    while (fscanf(file, "%d %s %s %s", &id, user, item, status) != EOF) {
+        if (id == order_id) {
+            sprintf(result, "Order %d: %s\n", order_id, status);
+            fclose(file);
+            return;
+        }
+    }
+    fclose(file);
+    strcpy(result, "Order not found\n");
+}
