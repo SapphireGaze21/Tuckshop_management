@@ -10,6 +10,7 @@
 #include <signal.h>
 #include "utils.h"
 #include "models.h"
+#include <semaphore.h>
 
 #define PORT 8080
 #define MAX_CLIENTS 10
@@ -22,8 +23,13 @@
 void* handle_client(void* arg);
 void* kitchen_worker(void* arg);
 void* maggi_worker(void* arg);
-void* dosa_worker(void* arg);
-void* drink_worker(void* arg);
+void* chin_worker(void* arg);
+void* packaged_worker(void* arg);
+
+//for semaphores
+sem_t maggi_sem;
+sem_t chin_sem;
+sem_t packaged_sem;
 
 //for mq
 int msgid;
@@ -50,6 +56,10 @@ int main() {
 
     key_t key = ftok("progfile", 65);
     msgid = msgget(key, 0666 | IPC_CREAT);
+
+    sem_init(&maggi_sem, 0, 5);   // max 5 maggi at once
+    sem_init(&chin_sem, 0, 2);    // 1 chin
+    sem_init(&packaged_sem, 0, 3);   // 3 packaged
 
     pipe(pipe_fd);
     //  write end non-blocking
@@ -83,10 +93,10 @@ int main() {
     printf("Server started on port %d...\n", PORT);
 
     // 5. Start kitchen worker threads
-    pthread_t maggi_thread, dosa_thread, drink_thread;
+    pthread_t maggi_thread, chin_thread, packaged_thread;
     pthread_create(&maggi_thread, NULL, maggi_worker, NULL);
-    pthread_create(&dosa_thread, NULL, dosa_worker, NULL);
-    pthread_create(&drink_thread, NULL, drink_worker, NULL);
+    pthread_create(&chin_thread, NULL, chin_worker, NULL);
+    pthread_create(&packaged_thread, NULL, packaged_worker, NULL);
 
     // 6. Accept clients loop
     while (running) {
@@ -239,36 +249,44 @@ void* maggi_worker(void* arg) {
 
         msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 1, 0);
 
-        printf("Maggi worker processing order %d\n", msg.order_id);
-        sleep(2);
-
+        sem_wait(&maggi_sem);
+        printf("[MAGGI] Processing order %d (%s)\n",msg.order_id, msg.item);
+        update_order_status(msg.order_id, "PROCESSING");
+        sleep(10); //cooking
         update_order_status(msg.order_id, "COMPLETED");
+        sem_post(&maggi_sem); // free stove
     }
     return NULL;
 }
 
-void* dosa_worker(void* arg) {
+void* chin_worker(void* arg) {
     while (running) {
         OrderMessage msg;
 
         msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 2, 0);
 
-        printf("Dosa worker processing order %d\n", msg.order_id);
-        sleep(2);
-
+        sem_wait(&chin_sem);
+        printf("[CHINESE] Processing order %d (%s)\n",msg.order_id, msg.item);
+        update_order_status(msg.order_id, "PROCESSING");
+        sleep(20); //cooking
         update_order_status(msg.order_id, "COMPLETED");
+        sem_post(&chin_sem); // free stove
     }
     return NULL;
 }
 
-void* drink_worker(void* arg) {
+void* packaged_worker(void* arg) {
     while (running) {
         OrderMessage msg;
-        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 3, 0);
-        printf("Drink worker processing order %d\n", msg.order_id);
-        sleep(2);
 
+        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 3, 0);
+
+        sem_wait(&packaged_sem);
+        printf("[PACKAGED FOOD] Processing order %d (%s)\n",msg.order_id, msg.item);
+        update_order_status(msg.order_id, "PROCESSING");
+        sleep(5); //cooking
         update_order_status(msg.order_id, "COMPLETED");
+        sem_post(&packaged_sem); // free 
     }
     return NULL;
 }
