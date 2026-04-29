@@ -117,7 +117,17 @@ void get_order_status(int order_id, char* result) {
 }
 
 void update_order_status(int order_id, char* new_status) {
-    FILE* file = fopen("orders.txt", "r");
+    int fd = open("orders.txt", O_RDWR);
+    if (fd < 0) return;
+    //lock file
+    struct flock lock;
+    lock.l_type = F_WRLCK;   // write lock
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;          // whole file
+    fcntl(fd, F_SETLKW, &lock);  // wait until lock acquired
+    // critical section starts
+    FILE* file = fdopen(fd, "r");
     FILE* temp = fopen("temp.txt", "w");
     int id;
     char user[50], item[50], status[20];
@@ -130,8 +140,16 @@ void update_order_status(int order_id, char* new_status) {
     }
     fclose(file);
     fclose(temp);
+    // overwrite original file
     remove("orders.txt");
     rename("temp.txt", "orders.txt");
+    //critical section ends
+
+    //file unlock
+    lock.l_type = F_UNLCK;
+    fcntl(fd, F_SETLK, &lock);
+
+    close(fd);
 }
 
 void get_item_category(char* item, char* category) {
