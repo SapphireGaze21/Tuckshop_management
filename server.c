@@ -9,18 +9,21 @@
 #include <fcntl.h>
 #include <signal.h>
 #include "utils.h"
+#include "models.h"
 
 #define PORT 8080
 #define MAX_CLIENTS 10
 
-    // Function declarations
+#define MAGGI_TYPE 1
+#define DOSA_TYPE  2
+#define DRINK_TYPE 3
+
+// Function declarations
 void* handle_client(void* arg);
 void* kitchen_worker(void* arg);
-
-    // Simple structure to pass socket
-typedef struct {
-        int client_sock;
-    } client_arg_t;
+void* maggi_worker(void* arg);
+void* dosa_worker(void* arg);
+void* drink_worker(void* arg);
 
 //for mq
 int msgid;
@@ -79,11 +82,11 @@ int main() {
 
     printf("Server started on port %d...\n", PORT);
 
-    // 5. Start kitchen worker threads (example: 3 workers)
-    pthread_t kitchen_threads[3];
-    for (int i = 0; i < 3; i++) {
-        pthread_create(&kitchen_threads[i], NULL, kitchen_worker, (void*)(long)i);
-    }
+    // 5. Start kitchen worker threads
+    pthread_t maggi_thread, dosa_thread, drink_thread;
+    pthread_create(&maggi_thread, NULL, maggi_worker, NULL);
+    pthread_create(&dosa_thread, NULL, dosa_worker, NULL);
+    pthread_create(&drink_thread, NULL, drink_worker, NULL);
 
     // 6. Accept clients loop
     while (running) {
@@ -111,12 +114,7 @@ int main() {
 
 
 // ---------------------- CLIENT HANDLER ----------------------
-typedef struct {
-    int sock;
-    char username[50];
-    char role[20];
-    int logged_in;
-} Session;
+
 
 void* handle_client(void* arg) {
 
@@ -176,6 +174,21 @@ void* handle_client(void* arg) {
             char item[50];
             sscanf(buffer, "PLACE_ORDER %s", item);
             int order_id = add_order(session.username, item);
+
+            //sending msg to kitchen process using mq
+            OrderMessage msg;
+            if (strcmp(item, "maggi") == 0)
+                msg.msg_type = MAGGI_TYPE;
+            else if (strcmp(item, "dosa") == 0)
+                msg.msg_type = DOSA_TYPE;
+            else
+                msg.msg_type = DRINK_TYPE;  //Type-based routing → deterministic processing
+
+            msg.order_id = order_id;
+            strcpy(msg.username, session.username);
+            strcpy(msg.item, item);
+            msgsnd(msgid, &msg, sizeof(msg) - sizeof(long), 0);
+
             if (order_id < 0) {
                 write(sock, "Order failed\n", 13);
             } else {
@@ -206,16 +219,59 @@ void* handle_client(void* arg) {
 
 void* kitchen_worker(void* arg) {
     int worker_id = (int)(long)arg;
-
     while (running) {
-        // TODO:
-        // - Check item queues
-        // - Dequeue order
-        // - Update status
-        
-
-        sleep(2); // simulate waiting
+        OrderMessage msg;
+        // wait for order from queue
+        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 0, 0);
+        printf("Worker %d processing order %d (%s)\n",
+               worker_id, msg.order_id, msg.item);
+        // simulate cooking
+        sleep(3);
+        // update status in file
+        update_order_status(msg.order_id, "COMPLETED");
     }
 
+    return NULL;
+}
+
+void* maggi_worker(void* arg) {
+    while (running) {
+        OrderMessage msg;
+
+        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), MAGGI_TYPE, 0);
+
+        printf("Maggi worker processing order %d\n", msg.order_id);
+        sleep(2);
+
+        update_order_status(msg.order_id, "COMPLETED");
+    }
+    return NULL;
+}
+
+void* dosa_worker(void* arg) {
+    while (running) {
+        OrderMessage msg;
+
+        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), DOSA_TYPE, 0);
+
+        printf("Dosa worker processing order %d\n", msg.order_id);
+        sleep(2);
+
+        update_order_status(msg.order_id, "COMPLETED");
+    }
+    return NULL;
+}
+
+void* drink_worker(void* arg) {
+    while (running) {
+        OrderMessage msg;
+
+        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), DRINK_TYPE, 0);
+
+        printf("Drink worker processing order %d\n", msg.order_id);
+        sleep(2);
+
+        update_order_status(msg.order_id, "COMPLETED");
+    }
     return NULL;
 }

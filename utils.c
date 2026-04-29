@@ -115,3 +115,21 @@ void get_order_status(int order_id, char* result) {
     fclose(file);
     strcpy(result, "Order not found\n");
 }
+
+void update_order_status(int order_id, char* new_status) {
+    FILE* file = fopen("orders.txt", "r");
+    FILE* temp = fopen("temp.txt", "w");
+    int id;
+    char user[50], item[50], status[20];
+    while (fscanf(file, "%d %s %s %s", &id, user, item, status) != EOF) {
+        if (id == order_id) {
+            fprintf(temp, "%d %s %s %s\n", id, user, item, new_status);
+        } else {
+            fprintf(temp, "%d %s %s %s\n", id, user, item, status);
+        }
+    }
+    fclose(file);
+    fclose(temp);
+    remove("orders.txt");
+    rename("temp.txt", "orders.txt");
+}
