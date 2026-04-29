@@ -173,20 +173,19 @@ void* handle_client(void* arg) {
             }
             char item[50];
             sscanf(buffer, "PLACE_ORDER %s", item);
+            char category[20];
+            get_item_category(item, category);
             int order_id = add_order(session.username, item);
-
             //sending msg to kitchen process using mq
             OrderMessage msg;
-            if (strcmp(item, "maggi") == 0)
-                msg.msg_type = MAGGI_TYPE;
-            else if (strcmp(item, "dosa") == 0)
-                msg.msg_type = DOSA_TYPE;
-            else
-                msg.msg_type = DRINK_TYPE;  //Type-based routing → deterministic processing
 
-            msg.order_id = order_id;
             strcpy(msg.username, session.username);
             strcpy(msg.item, item);
+            strcpy(msg.item_category, category);
+
+            msg.order_id = order_id;
+            msg.msg_type = get_msg_type(category);
+
             msgsnd(msgid, &msg, sizeof(msg) - sizeof(long), 0);
 
             if (order_id < 0) {
@@ -238,7 +237,7 @@ void* maggi_worker(void* arg) {
     while (running) {
         OrderMessage msg;
 
-        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), MAGGI_TYPE, 0);
+        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 1, 0);
 
         printf("Maggi worker processing order %d\n", msg.order_id);
         sleep(2);
@@ -252,7 +251,7 @@ void* dosa_worker(void* arg) {
     while (running) {
         OrderMessage msg;
 
-        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), DOSA_TYPE, 0);
+        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 2, 0);
 
         printf("Dosa worker processing order %d\n", msg.order_id);
         sleep(2);
@@ -265,9 +264,7 @@ void* dosa_worker(void* arg) {
 void* drink_worker(void* arg) {
     while (running) {
         OrderMessage msg;
-
-        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), DRINK_TYPE, 0);
-
+        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 3, 0);
         printf("Drink worker processing order %d\n", msg.order_id);
         sleep(2);
 

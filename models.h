@@ -18,6 +18,7 @@ typedef struct {
     int order_id;
     char username[50];
     char item[50];
+    char item_category[20];
 } OrderMessage;
 
 #endif

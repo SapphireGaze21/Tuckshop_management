@@ -133,3 +133,27 @@ void update_order_status(int order_id, char* new_status) {
     remove("orders.txt");
     rename("temp.txt", "orders.txt");
 }
+
+void get_item_category(char* item, char* category) {
+
+    if (strstr(item, "maggi") != NULL)
+        strcpy(category, "MAGGI");
+
+    else if (strstr(item, "dosa") != NULL)
+        strcpy(category, "DOSA");
+
+    else if (strstr(item, "coke") != NULL || strstr(item, "drink") != NULL)
+        strcpy(category, "DRINK");
+
+    else
+        strcpy(category, "OTHER");
+}
+
+int get_msg_type(char* category) {
+
+    if (strcmp(category, "MAGGI") == 0) return 1;
+    if (strcmp(category, "DOSA") == 0) return 2;
+    if (strcmp(category, "DRINK") == 0) return 3;
+
+    return 4; // OTHER
+}
