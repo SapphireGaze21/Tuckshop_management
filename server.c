@@ -8,6 +8,7 @@
 #include <sys/msg.h>
 #include <fcntl.h>
 #include <signal.h>
+#include "utils.h"
 
 #define PORT 8080
 #define MAX_CLIENTS 10
@@ -143,21 +144,29 @@ void* handle_client(void* arg) {
 
         printf("Received: %s\n", buffer);   
 
+        //SIGNUP
+        if (strncmp(buffer, "SIGNUP", 6) == 0) {
+            char user[50], pass[50], role[20];
+            sscanf(buffer, "SIGNUP %s %s %s", user, pass, role);
+
+            if (signup(user, pass, role)) {
+                write(sock, "Signup successful\n", 19);
+            } else {
+                write(sock, "User already exists\n", 21);
+            }
+        }
         //LOGIN
-        if (strncmp(buffer, "LOGIN", 5) == 0) {
+        else if (strncmp(buffer, "LOGIN", 5) == 0) {
             char user[50], pass[50];
             sscanf(buffer, "LOGIN %s %s", user, pass);
-
-            // TEMP logic (we’ll replace with file later)
-            if (strcmp(user, "admin") == 0 && strcmp(pass, "123") == 0) {
+            if (login(user, pass, session.role)) {
                 strcpy(session.username, user);
-                strcpy(session.role, "ADMIN");
                 session.logged_in = 1;
                 write(sock, "Login successful\n", 17);
             } else {
                 write(sock, "Login failed\n", 13);
             }
-        } 
+        }
 
         //Place order
         else if (strncmp(buffer, "PLACE_ORDER", 11) == 0) {
@@ -170,7 +179,6 @@ void* handle_client(void* arg) {
 
             // TEMP behavior
             printf("User %s ordered %s\n", session.username, item);
-
             write(sock, "Order placed\n", 13);
         }
 
