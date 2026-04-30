@@ -28,6 +28,12 @@ pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
 //pipe for loggers
 int pipe_fd[2];
 
+void log_event(const char* event) {
+    char buffer[1024];
+    snprintf(buffer, sizeof(buffer), "[LOG] %s\n", event);
+    write(pipe_fd[1], buffer, strlen(buffer));
+}
+
 //Graceful shutdown
 volatile int running = 1;
 
@@ -52,6 +58,31 @@ int main() {
     msgid = msgget(key, 0666 | IPC_CREAT);
 
     pipe(pipe_fd);
+
+    pid_t logger_pid = fork();
+    if (logger_pid == 0) {
+        // Child: Logger Process
+        close(pipe_fd[1]); // Close write end
+        FILE* log_file = fopen("server_logs.txt", "a");
+        if (log_file) {
+            char log_buf[1024];
+            while (1) {
+                int bytes = read(pipe_fd[0], log_buf, sizeof(log_buf) - 1);
+                if (bytes > 0) {
+                    log_buf[bytes] = '\0';
+                    fprintf(log_file, "%s", log_buf);
+                    fflush(log_file); // Ensure immediate write
+                } else if (bytes == 0) {
+                    break; // Parent closed pipe
+                }
+            }
+            fclose(log_file);
+        }
+        exit(0);
+    }
+    
+    // Parent continues
+    close(pipe_fd[0]); // Parent closes read end
     //  write end non-blocking
     int flags = fcntl(pipe_fd[1], F_GETFL, 0);
     fcntl(pipe_fd[1], F_SETFL, flags | O_NONBLOCK);
@@ -125,6 +156,11 @@ void* handle_client(void* arg) {
     pthread_mutex_lock(&client_mutex);
     active_clients++;
     printf("New client connected. Live Clients: %d\n", active_clients);
+    
+    char log_msg[256];
+    snprintf(log_msg, sizeof(log_msg), "New client connected. Total live clients: %d", active_clients);
+    log_event(log_msg);
+    
     pthread_mutex_unlock(&client_mutex);
 
     while (running) {
@@ -145,6 +181,8 @@ void* handle_client(void* arg) {
             sscanf(buffer, "SIGNUP %s %s %s", user, pass, role);
 
             if (signup(user, pass, role)) {
+                snprintf(log_msg, sizeof(log_msg), "User '%s' signed up as %s", user, role);
+                log_event(log_msg);
                 write(sock, "Signup successful\n", 19);
             } else {
                 write(sock, "User already exists\n", 21);
@@ -157,6 +195,8 @@ void* handle_client(void* arg) {
             if (login(user, pass, session.role)) {
                 strcpy(session.username, user);
                 session.logged_in = 1;
+                snprintf(log_msg, sizeof(log_msg), "User '%s' logged in as %s", user, session.role);
+                log_event(log_msg);
                 write(sock, "Login successful\n", 17);
             } else {
                 write(sock, "Login failed\n", 13);
@@ -202,6 +242,8 @@ void* handle_client(void* arg) {
             if (order_id < 0) {
                 write(sock, "Order failed\n", 13);
             } else {
+                snprintf(log_msg, sizeof(log_msg), "User '%s' placed order %d (%s)", session.username, order_id, item);
+                log_event(log_msg);
                 char msg[100];
                 sprintf(msg, "Order placed. ID: %d\n", order_id);
                 write(sock, msg, strlen(msg));
@@ -254,6 +296,10 @@ void* handle_client(void* arg) {
     pthread_mutex_lock(&client_mutex);
     active_clients--;
     printf("Client disconnected. Live Clients: %d\n", active_clients);
+    
+    snprintf(log_msg, sizeof(log_msg), "Client disconnected. Total live clients: %d", active_clients);
+    log_event(log_msg);
+    
     pthread_mutex_unlock(&client_mutex);
 
     close(sock);
