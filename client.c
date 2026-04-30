@@ -18,20 +18,17 @@ int main() {
     printf("1. LOGIN\n");
     printf("2. SIGNUP\n");
     printf("Choose option: ");
-    
+
     // 1. Create socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
-
     // 2. Setup server address
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
     inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr);
-
     // 3. Connect
     connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
 
     while (1) {
-
         if (!logged_in) {
             printf("\nCommands:\n");
             printf("LOGIN username password\n");
