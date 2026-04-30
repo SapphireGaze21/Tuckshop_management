@@ -227,10 +227,12 @@ void* handle_client(void* arg) {
                 write(sock, "Menu empty\n", 11);
                 continue;
             }
+            char response[1024] = "";
             char line[100];
             while (fgets(line, sizeof(line), file)) {
-                write(sock, line, strlen(line));
+                strcat(response, line);
             }
+            write(sock, response, strlen(response));
             fclose(file);
         }
     }

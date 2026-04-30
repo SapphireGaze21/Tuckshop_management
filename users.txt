@@ -1,1 +1,4 @@
 user 111 user
+admin 123 ADMIN
+user1 111 USER
+guest1 000 GUEST

@@ -99,39 +99,48 @@ int add_order(char* username, char* item) {
 
 int check_and_update_stock(char* item) {
     int fd = open("menu.txt", O_RDWR);
-    if (fd < 0) return -1;
-    // 🔒 LOCK FILE
+    if (fd < 0) return 0;
     struct flock lock;
     lock.l_type = F_WRLCK;
     lock.l_whence = SEEK_SET;
     lock.l_start = 0;
     lock.l_len = 0;
+    //LOCK
     fcntl(fd, F_SETLKW, &lock);
-    FILE* file = fdopen(fd, "r");
-    FILE* temp = fopen("temp.txt", "w");
+    FILE* file = fdopen(fd, "r+");   // read + write SAME file
+    char lines[100][100];
+    int count = 0;
     char it[50], cat[20];
     int qty;
     int success = 0;
+    // read all lines into memory
     while (fscanf(file, "%s %s %d", it, cat, &qty) != EOF) {
         if (strcmp(it, item) == 0 && strcmp(cat, "PACKAGED") == 0) {
             if (qty > 0) {
-                qty--;          // safe decrement
+                qty--;
                 success = 1;
-            } else {
+            } 
+            else {
                 success = 0;
             }
         }
-        fprintf(temp, "%s %s %d\n", it, cat, qty);
+        sprintf(lines[count++], "%s %s %d\n", it, cat, qty);
     }
-    fclose(file);
-    fclose(temp);
-    remove("menu.txt");
-    rename("temp.txt", "menu.txt");
-    // 🔓 UNLOCK
+    // rewind to start
+    rewind(file);
+    // overwrite file
+    for (int i = 0; i < count; i++) {
+        fprintf(file, "%s", lines[i]);
+    }
+    // truncate leftover content 
+    ftruncate(fd, ftell(file));
+    fflush(file);
+    //UNLOCK
     lock.l_type = F_UNLCK;
     fcntl(fd, F_SETLK, &lock);
-    close(fd);
-    return success;}
+    fclose(file);  // closes fd too
+    return success;
+}
 
 void get_order_status(int order_id, char* result) {
     FILE* file = fopen("orders.txt", "r");
@@ -197,6 +206,26 @@ int get_msg_type(char* category) {
 
     return 4; // OTHER
 }
+
+void get_item_category(char* item, char* category) {
+    FILE* file = fopen("menu.txt", "r");
+    if (!file) {
+        strcpy(category, "OTHER");
+        return;
+    }
+    char it[50], cat[20];
+    int qty;
+    while (fscanf(file, "%s %s %d", it, cat, &qty) != EOF) {
+        if (strcmp(it, item) == 0) {
+            strcpy(category, cat);
+            fclose(file);
+            return;
+        }
+    }
+    fclose(file);
+    strcpy(category, "OTHER");
+}
+
 
 void add_menu_item(char* item, char* category, int quantity) {
     FILE* file = fopen("menu.txt", "a");

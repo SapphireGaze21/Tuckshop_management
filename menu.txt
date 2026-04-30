@@ -1,0 +1,3 @@
+coke PACKAGED 0
+veg_maggi MAGGI -1
+noodles CHINESE -1
