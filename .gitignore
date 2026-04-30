@@ -1,0 +1,22 @@
+# Executables
+server
+client
+kitchen
+progfile
+
+# Compiled Objects
+*.o
+*.out
+
+# Mac OS
+.DS_Store
+
+# Documents
+*.pdf
+
+# Python Environments
+pdfenv/
+__pycache__/
+
+# Temporary Files
+temp.txt

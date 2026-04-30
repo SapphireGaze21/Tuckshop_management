@@ -21,6 +21,10 @@ void* handle_client(void* arg);
 //for mq
 int msgid;
 
+// Active clients counter and mutex
+int active_clients = 0;
+pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 //pipe for loggers
 int pipe_fd[2];
 
@@ -113,6 +117,12 @@ void* handle_client(void* arg) {
     session.logged_in = 0;
 
     char buffer[1024];
+
+    // Lock, update, and unlock when a client connects
+    pthread_mutex_lock(&client_mutex);
+    active_clients++;
+    printf("New client connected. Live Clients: %d\n", active_clients);
+    pthread_mutex_unlock(&client_mutex);
 
     while (running) {
         memset(buffer, 0, sizeof(buffer));
@@ -236,6 +246,13 @@ void* handle_client(void* arg) {
             fclose(file);
         }
     }
+
+    // Lock, update, and unlock when client disconnects
+    pthread_mutex_lock(&client_mutex);
+    active_clients--;
+    printf("Client disconnected. Live Clients: %d\n", active_clients);
+    pthread_mutex_unlock(&client_mutex);
+
     close(sock);
     return NULL;
 }

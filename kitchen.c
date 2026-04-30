@@ -29,16 +29,36 @@ sem_t packaged_sem;
 
 void* maggi_worker(void* arg) {
     while (running) {
-        OrderMessage msg;
-        // wait for order from queue
-        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 1, 0);
+        OrderMessage batch[3]; // Batch size up to 3
+        int batch_count = 0;
+
+        // Wait for first order
+        if (msgrcv(msgid, &batch[0], sizeof(OrderMessage) - sizeof(long), 1, 0) < 0) break;
+        batch_count = 1;
+
         sem_wait(&maggi_sem);
-        // strated cooking
-        printf("[MAGGI] Processing order %d (%s)\n",msg.order_id, msg.item);
-        update_order_status(msg.order_id, "PROCESSING");
-        sleep(10);// simulate cooking
-        update_order_status(msg.order_id, "COMPLETED");
-        //free stove
+
+        // Check for more orders
+        while (batch_count < 3) {
+            if (msgrcv(msgid, &batch[batch_count], sizeof(OrderMessage) - sizeof(long), 1, IPC_NOWAIT) > 0) {
+                batch_count++;
+            } else {
+                break;
+            }
+        }
+
+        printf("[MAGGI] Cooking batch of %d orders!\n", batch_count);
+        for(int i = 0; i < batch_count; i++) {
+            update_order_status(batch[i].order_id, "PROCESSING");
+        }
+
+        sleep(10); // simulate cooking for the whole batch
+
+        for(int i = 0; i < batch_count; i++) {
+            update_order_status(batch[i].order_id, "COMPLETED");
+            printf("[MAGGI] Order %d (%s) Completed!\n", batch[i].order_id, batch[i].item);
+        }
+
         sem_post(&maggi_sem);
     }
     return NULL;
@@ -46,13 +66,34 @@ void* maggi_worker(void* arg) {
 
 void* chin_worker(void* arg) {
     while (running) {
-        OrderMessage msg;
-        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 2, 0);
+        OrderMessage batch[2]; // Batch size up to 2
+        int batch_count = 0;
+
+        if (msgrcv(msgid, &batch[0], sizeof(OrderMessage) - sizeof(long), 2, 0) < 0) break;
+        batch_count = 1;
+
         sem_wait(&chin_sem);
-        printf("[CHINESE] Processing order %d (%s)\n",msg.order_id, msg.item);
-        update_order_status(msg.order_id, "PROCESSING");
+
+        while (batch_count < 2) {
+            if (msgrcv(msgid, &batch[batch_count], sizeof(OrderMessage) - sizeof(long), 2, IPC_NOWAIT) > 0) {
+                batch_count++;
+            } else {
+                break;
+            }
+        }
+
+        printf("[CHINESE] Cooking batch of %d orders!\n", batch_count);
+        for(int i = 0; i < batch_count; i++) {
+            update_order_status(batch[i].order_id, "PROCESSING");
+        }
+
         sleep(20);
-        update_order_status(msg.order_id, "COMPLETED");
+
+        for(int i = 0; i < batch_count; i++) {
+            update_order_status(batch[i].order_id, "COMPLETED");
+            printf("[CHINESE] Order %d (%s) Completed!\n", batch[i].order_id, batch[i].item);
+        }
+
         sem_post(&chin_sem);
     }
     return NULL;
@@ -60,13 +101,34 @@ void* chin_worker(void* arg) {
 
 void* packaged_worker(void* arg) {
     while (running) {
-        OrderMessage msg;
-        msgrcv(msgid, &msg, sizeof(msg) - sizeof(long), 3, 0);
+        OrderMessage batch[5]; // Batch size up to 5
+        int batch_count = 0;
+
+        if (msgrcv(msgid, &batch[0], sizeof(OrderMessage) - sizeof(long), 3, 0) < 0) break;
+        batch_count = 1;
+
         sem_wait(&packaged_sem);
-        printf("[PACKAGED FOOD] Processing order %d (%s)\n",msg.order_id, msg.item);
-        update_order_status(msg.order_id, "PROCESSING");
+
+        while (batch_count < 5) {
+            if (msgrcv(msgid, &batch[batch_count], sizeof(OrderMessage) - sizeof(long), 3, IPC_NOWAIT) > 0) {
+                batch_count++;
+            } else {
+                break;
+            }
+        }
+
+        printf("[PACKAGED FOOD] Processing batch of %d orders!\n", batch_count);
+        for(int i = 0; i < batch_count; i++) {
+            update_order_status(batch[i].order_id, "PROCESSING");
+        }
+
         sleep(5);
-        update_order_status(msg.order_id, "COMPLETED");
+
+        for(int i = 0; i < batch_count; i++) {
+            update_order_status(batch[i].order_id, "COMPLETED");
+            printf("[PACKAGED FOOD] Order %d (%s) Completed!\n", batch[i].order_id, batch[i].item);
+        }
+
         sem_post(&packaged_sem);
     }
     return NULL;
