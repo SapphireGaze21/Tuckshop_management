@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/shm.h>
 #include <fcntl.h>
 #include <signal.h>
 #include "utils.h"
@@ -20,6 +21,9 @@ void* handle_client(void* arg);
 
 //for mq
 int msgid;
+
+//for shm
+int shmid;
 
 // Active clients counter and mutex
 int active_clients = 0;
@@ -40,6 +44,21 @@ volatile int running = 1;
 void shutdown_handler(int sig) {
     running = 0;
     msgctl(msgid, IPC_RMID, NULL); // Deletes the message queue from RAM!
+    
+    // Save to file and clean up shared memory
+    if (shared_menu) {
+        FILE* menu_file = fopen("menu.txt", "w");
+        if (menu_file) {
+            for (int i = 0; i < shared_menu->count; i++) {
+                fprintf(menu_file, "%s %s %d\n", shared_menu->items[i].name, shared_menu->items[i].category, shared_menu->items[i].quantity);
+            }
+            fclose(menu_file);
+        }
+        pthread_mutex_destroy(&shared_menu->lock);
+        shmdt(shared_menu);
+        shmctl(shmid, IPC_RMID, NULL);
+    }
+
     printf("\nServer shutting down and cleaning up IPC resources...\n");
     exit(0);
 }
@@ -56,6 +75,37 @@ int main() {
 
     key_t key = ftok("progfile", 65);
     msgid = msgget(key, 0666 | IPC_CREAT);
+
+    // Setup Shared Memory
+    key_t shm_key = ftok("progfile", 66);
+    shmid = shmget(shm_key, sizeof(SharedMenu), 0666 | IPC_CREAT);
+    if (shmid < 0) {
+        perror("shmget failed");
+        exit(1);
+    }
+    shared_menu = (SharedMenu*) shmat(shmid, NULL, 0);
+
+    // Initialize mutex as PTHREAD_PROCESS_SHARED
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+    pthread_mutex_init(&shared_menu->lock, &attr);
+    pthread_mutexattr_destroy(&attr);
+
+    // Load menu from file
+    shared_menu->count = 0;
+    FILE* menu_file = fopen("menu.txt", "r");
+    if (menu_file) {
+        char it[50], cat[20];
+        int qty;
+        while (fscanf(menu_file, "%s %s %d", it, cat, &qty) != EOF && shared_menu->count < MAX_MENU_ITEMS) {
+            strcpy(shared_menu->items[shared_menu->count].name, it);
+            strcpy(shared_menu->items[shared_menu->count].category, cat);
+            shared_menu->items[shared_menu->count].quantity = qty;
+            shared_menu->count++;
+        }
+        fclose(menu_file);
+    }
 
     pipe(pipe_fd);
 
@@ -277,18 +327,9 @@ void* handle_client(void* arg) {
         }
         //view menu
         else if (strncmp(buffer, "VIEW_MENU", 9) == 0) {
-            FILE* file = fopen("menu.txt", "r");
-            if (!file) {
-                write(sock, "Menu empty\n", 11);
-                continue;
-            }
             char response[1024] = "";
-            char line[100];
-            while (fgets(line, sizeof(line), file)) {
-                strcat(response, line);
-            }
+            get_menu(response);
             write(sock, response, strlen(response));
-            fclose(file);
         }
     }
 

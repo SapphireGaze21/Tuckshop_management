@@ -1,6 +1,10 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "models.h"
+
+extern SharedMenu* shared_menu;
+
 int signup(char* username, char* password, char* role);
 int login(char* username, char* password, char* role);
 
@@ -12,5 +16,8 @@ void get_item_category(char* item, char* category);
 int get_msg_type(char* category);
 void add_menu_item(char* item, char* category, int quantity);
 int check_and_update_stock(char* item);
+
+void get_menu(char* response);
+void print_stock(char* item);
 
 #endif

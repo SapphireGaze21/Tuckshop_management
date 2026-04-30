@@ -1,6 +1,22 @@
 #ifndef MODELS_H
 #define MODELS_H
 
+#include <pthread.h>
+
+#define MAX_MENU_ITEMS 100
+
+typedef struct {
+    char name[50];
+    char category[20];
+    int quantity;
+} MenuItem;
+
+typedef struct {
+    MenuItem items[MAX_MENU_ITEMS];
+    int count;
+    pthread_mutex_t lock;
+} SharedMenu;
+
 typedef struct {
     int sock;
     char username[50];

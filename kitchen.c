@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/shm.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <pthread.h>
@@ -19,6 +20,9 @@ volatile int running = 1;
 void shutdown_handler(int sig) {
     running = 0;
     msgctl(msgid, IPC_RMID, NULL); // Deletes the message queue from RAM!
+    if (shared_menu) {
+        shmdt(shared_menu);
+    }
     printf("\nKitchen shutting down and cleaning up IPC resources...\n");
     exit(0);
 }
@@ -56,6 +60,7 @@ void* maggi_worker(void* arg) {
         for(int i = 0; i < batch_count; i++) {
             update_order_status(batch[i].order_id, "COMPLETED");
             printf("[MAGGI] Order %d (%s) Completed!\n", batch[i].order_id, batch[i].item);
+            print_stock(batch[i].item);
         }
         sem_post(&maggi_sem);
     }
@@ -86,6 +91,7 @@ void* chin_worker(void* arg) {
         for(int i = 0; i < batch_count; i++) {
             update_order_status(batch[i].order_id, "COMPLETED");
             printf("[CHINESE] Order %d (%s) Completed!\n", batch[i].order_id, batch[i].item);
+            print_stock(batch[i].item);
         }
         sem_post(&chin_sem);
     }
@@ -117,6 +123,7 @@ void* packaged_worker(void* arg) {
         for(int i = 0; i < batch_count; i++) {
             update_order_status(batch[i].order_id, "COMPLETED");
             printf("[PACKAGED FOOD] Order %d (%s) Completed!\n", batch[i].order_id, batch[i].item);
+            print_stock(batch[i].item);
         }
         sem_post(&packaged_sem);
     }
@@ -134,6 +141,14 @@ int main() {
     if (msgid < 0) {
         perror("msgget failed");
         exit(1);
+    }
+
+    key_t shm_key = ftok("progfile", 66);
+    int shmid = shmget(shm_key, sizeof(SharedMenu), 0666);
+    if (shmid >= 0) {
+        shared_menu = (SharedMenu*) shmat(shmid, NULL, 0);
+    } else {
+        perror("Kitchen couldn't connect to shared memory");
     }
 
     sem_init(&maggi_sem, 0, 2);

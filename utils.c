@@ -2,6 +2,9 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "models.h"
+
+SharedMenu* shared_menu = NULL;
 
 int user_exists(char* username){
     FILE* file = fopen("users.txt", "r");
@@ -98,47 +101,19 @@ int add_order(char* username, char* item) {
 }
 
 int check_and_update_stock(char* item) {
-    int fd = open("menu.txt", O_RDWR);
-    if (fd < 0) return 0;
-    struct flock lock;
-    lock.l_type = F_WRLCK;
-    lock.l_whence = SEEK_SET;
-    lock.l_start = 0;
-    lock.l_len = 0;
-    //LOCK
-    fcntl(fd, F_SETLKW, &lock);
-    FILE* file = fdopen(fd, "r+");   // read + write SAME file
-    char lines[100][100];
-    int count = 0;
-    char it[50], cat[20];
-    int qty;
+    if (!shared_menu) return 0;
     int success = 0;
-    // read all lines into memory
-    while (fscanf(file, "%s %s %d", it, cat, &qty) != EOF) {
-        if (strcmp(it, item) == 0 && strcmp(cat, "PACKAGED") == 0) {
-            if (qty > 0) {
-                qty--;
+    pthread_mutex_lock(&shared_menu->lock);
+    for (int i = 0; i < shared_menu->count; i++) {
+        if (strcmp(shared_menu->items[i].name, item) == 0 && strcmp(shared_menu->items[i].category, "PACKAGED") == 0) {
+            if (shared_menu->items[i].quantity > 0) {
+                shared_menu->items[i].quantity--;
                 success = 1;
-            } 
-            else {
-                success = 0;
             }
+            break;
         }
-        sprintf(lines[count++], "%s %s %d\n", it, cat, qty);
     }
-    // rewind to start
-    rewind(file);
-    // overwrite file
-    for (int i = 0; i < count; i++) {
-        fprintf(file, "%s", lines[i]);
-    }
-    // truncate leftover content 
-    ftruncate(fd, ftell(file));
-    fflush(file);
-    //UNLOCK
-    lock.l_type = F_UNLCK;
-    fcntl(fd, F_SETLK, &lock);
-    fclose(file);  // closes fd too
+    pthread_mutex_unlock(&shared_menu->lock);
     return success;
 }
 
@@ -208,28 +183,66 @@ int get_msg_type(char* category) {
 }
 
 void get_item_category(char* item, char* category) {
-    FILE* file = fopen("menu.txt", "r");
-    if (!file) {
+    if (!shared_menu) {
         strcpy(category, "OTHER");
         return;
     }
-    char it[50], cat[20];
-    int qty;
-    while (fscanf(file, "%s %s %d", it, cat, &qty) != EOF) {
-        if (strcmp(it, item) == 0) {
-            strcpy(category, cat);
-            fclose(file);
+    pthread_mutex_lock(&shared_menu->lock);
+    for (int i = 0; i < shared_menu->count; i++) {
+        if (strcmp(shared_menu->items[i].name, item) == 0) {
+            strcpy(category, shared_menu->items[i].category);
+            pthread_mutex_unlock(&shared_menu->lock);
             return;
         }
     }
-    fclose(file);
+    pthread_mutex_unlock(&shared_menu->lock);
     strcpy(category, "OTHER");
 }
 
 
 void add_menu_item(char* item, char* category, int quantity) {
-    FILE* file = fopen("menu.txt", "a");
-    if (!file) return;
-    fprintf(file, "%s %s %d\n", item, category, quantity);
-    fclose(file);
+    if (!shared_menu) return;
+    pthread_mutex_lock(&shared_menu->lock);
+    int found = 0;
+    for (int i = 0; i < shared_menu->count; i++) {
+        if (strcmp(shared_menu->items[i].name, item) == 0) {
+            shared_menu->items[i].quantity += quantity;
+            found = 1;
+            break;
+        }
+    }
+    if (!found && shared_menu->count < MAX_MENU_ITEMS) {
+        strcpy(shared_menu->items[shared_menu->count].name, item);
+        strcpy(shared_menu->items[shared_menu->count].category, category);
+        shared_menu->items[shared_menu->count].quantity = quantity;
+        shared_menu->count++;
+    }
+    pthread_mutex_unlock(&shared_menu->lock);
+}
+
+void get_menu(char* response) {
+    if (!shared_menu || shared_menu->count == 0) {
+        strcpy(response, "Menu empty\n");
+        return;
+    }
+    response[0] = '\0';
+    pthread_mutex_lock(&shared_menu->lock);
+    for (int i = 0; i < shared_menu->count; i++) {
+        char line[100];
+        sprintf(line, "%s %s %d\n", shared_menu->items[i].name, shared_menu->items[i].category, shared_menu->items[i].quantity);
+        strcat(response, line);
+    }
+    pthread_mutex_unlock(&shared_menu->lock);
+}
+
+void print_stock(char* item) {
+    if (!shared_menu) return;
+    pthread_mutex_lock(&shared_menu->lock);
+    for (int i = 0; i < shared_menu->count; i++) {
+        if (strcmp(shared_menu->items[i].name, item) == 0) {
+            printf("[STOCK] %s remaining in stock: %d\n", item, shared_menu->items[i].quantity);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&shared_menu->lock);
 }
