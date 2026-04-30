@@ -97,6 +97,42 @@ int add_order(char* username, char* item) {
     return order_id;
 }
 
+int check_and_update_stock(char* item) {
+    int fd = open("menu.txt", O_RDWR);
+    if (fd < 0) return -1;
+    // 🔒 LOCK FILE
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    fcntl(fd, F_SETLKW, &lock);
+    FILE* file = fdopen(fd, "r");
+    FILE* temp = fopen("temp.txt", "w");
+    char it[50], cat[20];
+    int qty;
+    int success = 0;
+    while (fscanf(file, "%s %s %d", it, cat, &qty) != EOF) {
+        if (strcmp(it, item) == 0 && strcmp(cat, "PACKAGED") == 0) {
+            if (qty > 0) {
+                qty--;          // safe decrement
+                success = 1;
+            } else {
+                success = 0;
+            }
+        }
+        fprintf(temp, "%s %s %d\n", it, cat, qty);
+    }
+    fclose(file);
+    fclose(temp);
+    remove("menu.txt");
+    rename("temp.txt", "menu.txt");
+    // 🔓 UNLOCK
+    lock.l_type = F_UNLCK;
+    fcntl(fd, F_SETLK, &lock);
+    close(fd);
+    return success;}
+
 void get_order_status(int order_id, char* result) {
     FILE* file = fopen("orders.txt", "r");
     if (!file) {
@@ -152,23 +188,6 @@ void update_order_status(int order_id, char* new_status) {
     close(fd);
 }
 
-void get_item_category(char* item, char* category) {
-    FILE* file = fopen("menu.txt", "r");
-    if (!file) {
-        strcpy(category, "OTHER");
-        return;
-    }
-    char it[50], cat[20];
-    while (fscanf(file, "%s %s", it, cat) != EOF) {
-        if (strcmp(it, item) == 0) {
-            strcpy(category, cat);
-            fclose(file);
-            return;
-        }
-    }
-    fclose(file);
-    strcpy(category, "OTHER");
-}
 
 int get_msg_type(char* category) {
 
@@ -179,10 +198,9 @@ int get_msg_type(char* category) {
     return 4; // OTHER
 }
 
-void add_menu_item(char* item, char* category) {
+void add_menu_item(char* item, char* category, int quantity) {
     FILE* file = fopen("menu.txt", "a");
     if (!file) return;
-
-    fprintf(file, "%s %s\n", item, category);
+    fprintf(file, "%s %s %d\n", item, category, quantity);
     fclose(file);
 }

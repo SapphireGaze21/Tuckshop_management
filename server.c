@@ -165,6 +165,14 @@ void* handle_client(void* arg) {
             sscanf(buffer, "PLACE_ORDER %s", item);
             char category[20];
             get_item_category(item, category);
+
+            if (strcmp(category, "PACKAGED") == 0) {
+                if (!check_and_update_stock(item)) {
+                    write(sock, "Item out of stock\n", 18);
+                    continue;   // stop order here
+                }
+            }//now safe to order
+
             int order_id = add_order(session.username, item);
             //sending msg to kitchen process using mq
             OrderMessage msg;
@@ -200,15 +208,17 @@ void* handle_client(void* arg) {
             write(sock, result, strlen(result));
         }
         //add item
-        else if (strncmp(buffer, "ADD_ITEM", 8) == 0) {
+       else if (strncmp(buffer, "ADD_ITEM", 8) == 0) {
             if (!session.logged_in || strcmp(session.role, "ADMIN") != 0) {
                 write(sock, "Admin access required\n", 22);
                 continue;
             }
             char item[50], category[20];
-            sscanf(buffer, "ADD_ITEM %s %s", item, category);
-            add_menu_item(item, category);
-            write(sock, "Item added to menu\n", 20); //add item
+            int qty = -1;
+            // allow optional quantity
+            sscanf(buffer, "ADD_ITEM %s %s %d", item, category, &qty);
+            add_menu_item(item, category, qty);
+            write(sock, "Item added to menu\n", 20);
         }
         //view menu
         else if (strncmp(buffer, "VIEW_MENU", 9) == 0) {
