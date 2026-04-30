@@ -33,6 +33,9 @@ volatile int running = 1;
 
 void shutdown_handler(int sig) {
     running = 0;
+    msgctl(msgid, IPC_RMID, NULL); // Deletes the message queue from RAM!
+    printf("\nServer shutting down and cleaning up IPC resources...\n");
+    exit(0);
 }
 
 // ---------------------- MAIN ----------------------
