@@ -5,7 +5,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <semaphore.h>
-#include <signal.h>
+#include <signal.h>]
 #include "utils.h"
 #include "models.h"
 

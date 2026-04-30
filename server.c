@@ -152,8 +152,13 @@ void* handle_client(void* arg) {
 
         //Place order
         else if (strncmp(buffer, "PLACE_ORDER", 11) == 0) {
-            if (!session.logged_in) {
+            if (!session.logged_in){
                 write(sock, "Please login first\n", 20);
+                continue;
+            }
+
+            if(strcmp(session.role, "GUEST") == 0){
+                write(sock, "Guests cannot place orders\n", 27);
                 continue;
             }
             char item[50];
@@ -193,6 +198,30 @@ void* handle_client(void* arg) {
             char result[100];
             get_order_status(order_id, result);
             write(sock, result, strlen(result));
+        }
+        //add item
+        else if (strncmp(buffer, "ADD_ITEM", 8) == 0) {
+            if (!session.logged_in || strcmp(session.role, "ADMIN") != 0) {
+                write(sock, "Admin access required\n", 22);
+                continue;
+            }
+            char item[50], category[20];
+            sscanf(buffer, "ADD_ITEM %s %s", item, category);
+            add_menu_item(item, category);
+            write(sock, "Item added to menu\n", 20); //add item
+        }
+        //view menu
+        else if (strncmp(buffer, "VIEW_MENU", 9) == 0) {
+            FILE* file = fopen("menu.txt", "r");
+            if (!file) {
+                write(sock, "Menu empty\n", 11);
+                continue;
+            }
+            char line[100];
+            while (fgets(line, sizeof(line), file)) {
+                write(sock, line, strlen(line));
+            }
+            fclose(file);
         }
     }
     close(sock);

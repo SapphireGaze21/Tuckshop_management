@@ -153,18 +153,21 @@ void update_order_status(int order_id, char* new_status) {
 }
 
 void get_item_category(char* item, char* category) {
-
-    if (strstr(item, "maggi") != NULL)
-        strcpy(category, "MAGGI");
-
-    else if (strstr(item, "dosa") != NULL)
-        strcpy(category, "DOSA");
-
-    else if (strstr(item, "coke") != NULL || strstr(item, "drink") != NULL)
-        strcpy(category, "DRINK");
-
-    else
+    FILE* file = fopen("menu.txt", "r");
+    if (!file) {
         strcpy(category, "OTHER");
+        return;
+    }
+    char it[50], cat[20];
+    while (fscanf(file, "%s %s", it, cat) != EOF) {
+        if (strcmp(it, item) == 0) {
+            strcpy(category, cat);
+            fclose(file);
+            return;
+        }
+    }
+    fclose(file);
+    strcpy(category, "OTHER");
 }
 
 int get_msg_type(char* category) {
@@ -174,4 +177,12 @@ int get_msg_type(char* category) {
     if (strcmp(category, "DRINK") == 0) return 3;
 
     return 4; // OTHER
+}
+
+void add_menu_item(char* item, char* category) {
+    FILE* file = fopen("menu.txt", "a");
+    if (!file) return;
+
+    fprintf(file, "%s %s\n", item, category);
+    fclose(file);
 }
