@@ -273,6 +273,11 @@ void* handle_client(void* arg) {
             char category[20];
             get_item_category(item, category);
 
+            if (strcmp(category, "OTHER") == 0) {
+                write(sock, "Item not found in menu\n", 23);
+                continue;
+            }
+
             if (strcmp(category, "PACKAGEDFOOD") == 0) {
                 if (!check_and_update_stock(item)) {
                     write(sock, "Item out of stock\n", 18);

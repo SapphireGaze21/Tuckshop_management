@@ -4,8 +4,15 @@
 [LOG] User 'user1' signed up as USER
 [LOG] User 'user1' logged in as USER
 [LOG] User 'thapan' logged in as ADMIN
-[LOG] User 'user1' placed order 1 (coke)
-[LOG] User 'user1' placed order 2 (coke)
-[LOG] User 'user1' placed order 3 (coke)
-[LOG] User 'user1' placed order 4 (coke)
-[LOG] User 'user1' placed order 5 (coke)
+[LOG] New client connected. Total live clients: 1
+[LOG] New client connected. Total live clients: 2
+[LOG] User 'user1' logged in as USER
+[LOG] User 'thapan' logged in as ADMIN
+[LOG] New client connected. Total live clients: 3
+[LOG] User 'user2' signed up as USER
+[LOG] User 'user2' logged in as USER
+[LOG] User 'user2' placed order 6 (coke)
+[LOG] User 'user1' placed order 7 (cokeoke)
+[LOG] User 'user1' placed order 8 (coke)
+[LOG] User 'user1' placed order 9 (coke)
+[LOG] User 'user1' placed order 10 (coke)
