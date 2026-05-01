@@ -229,7 +229,7 @@ void* handle_client(void* arg) {
         //SIGNUP
         if (strncmp(buffer, "SIGNUP", 6) == 0) {
             char user[50], pass[50], role[20];
-            sscanf(buffer, "SIGNUP %s %s %s", user, pass, role);
+            sscanf(buffer, "SIGNUP %49s %49s %19s", user, pass, role);
 
             if (signup(user, pass, role)) {
                 snprintf(log_msg, sizeof(log_msg), "User '%s' signed up as %s", user, role);
@@ -242,7 +242,7 @@ void* handle_client(void* arg) {
         //LOGIN
         else if (strncmp(buffer, "LOGIN", 5) == 0) {
             char user[50], pass[50];
-            sscanf(buffer, "LOGIN %s %s", user, pass);
+            sscanf(buffer, "LOGIN %49s %49s", user, pass);
             if (login(user, pass, session.role)) {
                 strcpy(session.username, user);
                 session.logged_in = 1;
@@ -269,7 +269,7 @@ void* handle_client(void* arg) {
                 continue;
             }
             char item[50];
-            sscanf(buffer, "PLACE_ORDER %s", item);
+            sscanf(buffer, "PLACE_ORDER %49s", item);
             char category[20];
             get_item_category(item, category);
 
@@ -330,7 +330,7 @@ void* handle_client(void* arg) {
             char item[50], category[20];
             int qty = -1;
             // allow optional quantity
-            sscanf(buffer, "ADD_ITEM %s %s %d", item, category, &qty);
+            sscanf(buffer, "ADD_ITEM %49s %19s %d", item, category, &qty);
             add_menu_item(item, category, qty);
             write(sock, "Item added to menu\n", 20);
         }

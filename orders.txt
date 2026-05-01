@@ -1,6 +1,0 @@
-1 user2 coke COMPLETED
-2 user1 coke COMPLETED
-3 user1 coke COMPLETED
-4 user1 maggi COMPLETED
-5 user1 maggi COMPLETED
-6 user1 maggi COMPLETED

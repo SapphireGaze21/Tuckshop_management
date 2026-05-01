@@ -2,7 +2,6 @@
 server
 client
 kitchen
-progfile
 
 # Compiled Objects
 *.o
@@ -18,5 +17,6 @@ progfile
 pdfenv/
 __pycache__/
 
-# Temporary Files
+# Temporary Files & Logs
 temp.txt
+server_logs.txt
