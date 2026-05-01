@@ -43,6 +43,9 @@ void* maggi_worker(void* arg) {
         batch_count = 1;
 
         sem_wait(&maggi_sem);
+        
+        printf("[MAGGI] Received first order. Waiting 10 seconds to form a batch...\n");
+        sleep(10);
 
         // Check for more orders
         while (batch_count < 3) {
@@ -56,7 +59,7 @@ void* maggi_worker(void* arg) {
         for(int i = 0; i < batch_count; i++) {
             update_order_status(batch[i].order_id, "PROCESSING");
         }
-        sleep(10); // simulate cooking for the whole batch
+        sleep(15); // simulate cooking for the whole batch
         for(int i = 0; i < batch_count; i++) {
             update_order_status(batch[i].order_id, "COMPLETED");
             printf("[MAGGI] Order %d (%s) Completed!\n", batch[i].order_id, batch[i].item);
@@ -76,6 +79,9 @@ void* chin_worker(void* arg) {
 
         sem_wait(&chin_sem);
 
+        printf("[CHINESE] Received first order. Waiting 10 seconds to form a batch...\n");
+        sleep(10);
+
         while (batch_count < 2) {
             if (msgrcv(msgid, &batch[batch_count], sizeof(OrderMessage) - sizeof(long), 2, IPC_NOWAIT) > 0) {
                 batch_count++;
@@ -87,7 +93,7 @@ void* chin_worker(void* arg) {
         for(int i = 0; i < batch_count; i++) {
             update_order_status(batch[i].order_id, "PROCESSING");
         }
-        sleep(20);
+        sleep(15);
         for(int i = 0; i < batch_count; i++) {
             update_order_status(batch[i].order_id, "COMPLETED");
             printf("[CHINESE] Order %d (%s) Completed!\n", batch[i].order_id, batch[i].item);

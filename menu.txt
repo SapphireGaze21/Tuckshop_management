@@ -1,0 +1,5 @@
+-1 coke 2
+DRINK 3 2
+PACKAGEDFOOD coke 3
+coke PACKAGEDFOOD 0
+maggi MAGGI -1
