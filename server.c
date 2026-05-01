@@ -247,7 +247,10 @@ void* handle_client(void* arg) {
                 session.logged_in = 1;
                 snprintf(log_msg, sizeof(log_msg), "User '%s' logged in as %s", user, session.role);
                 log_event(log_msg);
-                write(sock, "Login successful\n", 17);
+                
+                char resp[100];
+                snprintf(resp, sizeof(resp), "Login successful as %s\n", session.role);
+                write(sock, resp, strlen(resp));
             } else {
                 write(sock, "Login failed\n", 13);
             }
@@ -330,6 +333,21 @@ void* handle_client(void* arg) {
             char response[1024] = "";
             get_menu(response);
             write(sock, response, strlen(response));
+        }
+        //logout
+        else if (strncmp(buffer, "LOGOUT", 6) == 0) {
+            if (session.logged_in) {
+                snprintf(log_msg, sizeof(log_msg), "User '%s' logged out", session.username);
+                log_event(log_msg);
+                session.logged_in = 0;
+                write(sock, "Logged out successfully\n", 24);
+            } else {
+                write(sock, "Not logged in\n", 14);
+            }
+        }
+        //invalid command
+        else {
+            write(sock, "Invalid command\n", 16);
         }
     }
 

@@ -1,0 +1,6 @@
+[LOG] New client connected. Total live clients: 1
+[LOG] User 'thapan' signed up as ADMIN
+[LOG] User 'thapan1' signed up as ADMIN
+[LOG] User 'thapan' logged in as ADMIN
+[LOG] New client connected. Total live clients: 2
+[LOG] User 'thapan1' logged in as ADMIN
