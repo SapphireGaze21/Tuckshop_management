@@ -273,7 +273,7 @@ void* handle_client(void* arg) {
             char category[20];
             get_item_category(item, category);
 
-            if (strcmp(category, "PACKAGED") == 0) {
+            if (strcmp(category, "PACKAGEDFOOD") == 0) {
                 if (!check_and_update_stock(item)) {
                     write(sock, "Item out of stock\n", 18);
                     continue;   // stop order here

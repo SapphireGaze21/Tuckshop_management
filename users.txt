@@ -1,6 +1,2 @@
-user 111 user
-admin 123 ADMIN
-user1 111 USER
-guest1 000 GUEST
-thapan pass ADMIN
-thapan1 pass1 ADMIN
+thapan thapan ADMIN
+user1 user1 USER

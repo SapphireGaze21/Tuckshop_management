@@ -1,8 +1,11 @@
 [LOG] New client connected. Total live clients: 1
-[LOG] User 'thapan' signed up as ADMIN
-[LOG] User 'thapan1' signed up as ADMIN
-[LOG] User 'thapan' logged in as ADMIN
 [LOG] New client connected. Total live clients: 2
-[LOG] User 'thapan1' logged in as ADMIN
-[LOG] Client disconnected. Total live clients: 1
-[LOG] Client disconnected. Total live clients: 0
+[LOG] User 'thapan' signed up as ADMIN
+[LOG] User 'user1' signed up as USER
+[LOG] User 'user1' logged in as USER
+[LOG] User 'thapan' logged in as ADMIN
+[LOG] User 'user1' placed order 1 (coke)
+[LOG] User 'user1' placed order 2 (coke)
+[LOG] User 'user1' placed order 3 (coke)
+[LOG] User 'user1' placed order 4 (coke)
+[LOG] User 'user1' placed order 5 (coke)

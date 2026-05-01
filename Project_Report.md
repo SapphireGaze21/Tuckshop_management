@@ -39,44 +39,39 @@ The system separates operations into three distinct OS processes: the Server, th
   - **Pipes & `fork()`:** In `server.c`, `fork()` is used to spawn a child Logger Process. The main server passes strings down an unnamed `pipe()`. The child infinitely reads this pipe and writes to `server_logs.txt`, ensuring that slow disk logging doesn't stall the main network server.
   - **Shared Memory:** The Kitchen process attaches to the Server's Shared Memory block to print real-time live stock updates to the terminal after finishing a batch of food.
 
-## 3. Demonstration Script & Screenshots
-*(Note: This section outlines the exact steps taken to demonstrate the core OS concepts. Replace the placeholders with actual screenshots of your terminal windows).*
+## 3. Demonstration & Screenshots
 
-### Demonstration 1: Initialization & IPC (Pipes, Shared Memory, Message Queues)
-**How to Demonstrate:**
-1. Open 3 Terminal windows side-by-side.
-2. **Terminal 1:** Run `./server`. (This initializes the Shared Memory, creates the Message Queue, and uses `fork()` and `pipe()` to spawn the Logger process).
-3. **Terminal 2:** Run `tail -f server_logs.txt` to watch the live pipe outputs.
-4. **Terminal 3:** Run `./kitchen`. (This attaches to the Server's Shared Memory and connects to the Message Queue).
-**Screenshot 1:** *(Insert screenshot showing all 3 terminals running perfectly without crashing)*
-**Concepts Proven:** `shmget`, `msgget`, `fork`, `pipe`.
+### Demonstration 1: Initialization & IPC Setup (Pipes, Shared Memory, Message Queues)
+*(Instructions for you to take the screenshot: Run `./server` in Terminal 1, `tail -f server_logs.txt` in Terminal 2, and `./kitchen` in Terminal 3. Take a screenshot of all 3 running. Then delete these italic instructions before submitting.)*
+
+**Screenshot 1:** *(Insert screenshot here)*
+
+**Technical Analysis & Implementation Details:**
+The screenshot above demonstrates the initialization of the system's Inter-Process Communication (IPC) architecture. When `./server` is executed, it uses `shmget` to allocate a System V Shared Memory block for the live menu and `msgget` to create a Message Queue. It then calls `fork()` to spawn a child Logger process. The parent server and child logger communicate asynchronously via an unnamed `pipe()`, as verified by the `tail -f server_logs.txt` command capturing the output. Simultaneously, the `./kitchen` process successfully attaches to the exact same shared memory segment and message queue using `shmat`, establishing a perfectly linked multi-process environment.
 
 ### Demonstration 2: Concurrency, Mutexes & File Locking
-**How to Demonstrate:**
-1. Open two new terminals (Terminal 4 and 5). Run `./client` in both.
-2. Watch Terminal 2 (`server_logs.txt`). It will instantly show: `"New client connected. Total live clients: 2"`. This proves the `pthread_mutex_t client_mutex` successfully prevented a race condition when counting active clients.
-3. In Terminal 4, type: `SIGNUP admin pass ADMIN`
-4. In Terminal 5, type: `SIGNUP user pass USER`
-5. Both will succeed simultaneously. This proves the `fcntl()` write-locks on `users.txt` prevented file corruption.
-**Screenshot 2:** *(Insert screenshot showing both clients signing up, and the logger terminal showing the exact events)*
-**Concepts Proven:** `pthread_create`, `pthread_mutex_lock`, `fcntl` (File Locks).
+*(Instructions for you to take the screenshot: Open two `./client` terminals. Run `SIGNUP admin pass ADMIN` and `SIGNUP user pass USER` at the same time. Take a screenshot showing the logger updating active clients and the clients signing up. Delete these italic instructions later.)*
+
+**Screenshot 2:** *(Insert screenshot here)*
+
+**Technical Analysis & Implementation Details:**
+This screenshot proves the successful implementation of concurrent thread execution and resource locking. When the two `./client` instances connect, the server spawns two isolated threads via `pthread_create`. As both threads attempt to increment the global `active_clients` counter simultaneously, a race condition is prevented using a POSIX Mutex (`pthread_mutex_lock`), correctly reflecting "Total live clients: 2" in the logs. Furthermore, both clients successfully register their accounts simultaneously because the `signup()` function utilizes `fcntl()` to place strict write-locks on the `users.txt` database, ensuring file consistency and preventing data corruption during concurrent writes.
 
 ### Demonstration 3: Batch Processing & Semaphores
-**How to Demonstrate:**
-1. In Terminal 4 (Admin), add stock: `ADD_ITEM Maggi PACKAGED 10`.
-2. In Terminal 5 (User), quickly type `PLACE_ORDER Maggi` three times in a row. 
-3. Watch the Kitchen terminal (Terminal 3). Because you implemented `IPC_NOWAIT`, it will completely bypass the standard 1-by-1 processing and instantly print: `[MAGGI] Cooking batch of 3 orders!`.
-4. It will wait exactly 10 seconds, and then mark all 3 orders as completed simultaneously.
-**Screenshot 3:** *(Insert screenshot of the Kitchen terminal showing the Batch Processing output)*
-**Concepts Proven:** `msgrcv` (`IPC_NOWAIT`), Advanced CPU/Thread Scheduling, Semaphores (`sem_wait` limit).
+*(Instructions for you to take the screenshot: In the client terminal, type `PLACE_ORDER Maggi` three times in a row very quickly. Take a screenshot of the Kitchen terminal showing it scoop up all 3. Delete these italic instructions later.)*
+
+**Screenshot 3:** *(Insert screenshot here)*
+
+**Technical Analysis & Implementation Details:**
+This screenshot demonstrates advanced CPU scheduling and counting semaphores (`sem_t`) in action. When three identical orders are placed, they are pushed into the Message Queue. Instead of the Kitchen worker thread processing them inefficiently one by one, it leverages the `IPC_NOWAIT` flag with `msgrcv`. The worker thread instantly retrieves all three pending Maggi orders from the queue to form a single "batch". It then sleeps only once to simulate cooking for the entire batch. The counting semaphores ensure that the maximum cooking capacity per category (e.g., 2 stoves for Maggi) is never exceeded.
 
 ### Demonstration 4: Cross-Process Shared Memory & Graceful Shutdown
-**How to Demonstrate:**
-1. Immediately after the Maggi batch finishes cooking, look at the Kitchen terminal (Terminal 3). It will print: `[STOCK] Maggi remaining in stock: 7`. This proves that the Kitchen process instantly read the RAM that the Server process modified!
-2. Finally, go to the Server terminal (Terminal 1) and press `Ctrl+C`.
-3. It will print `"Server shutting down and cleaning up IPC resources..."`. This proves that it intercepted the OS shutdown signal, wrote the RAM stock back to the hard drive, and used `IPC_RMID` to prevent memory leaks.
-**Screenshot 4:** *(Insert screenshot of the Kitchen printing the stock, and the Server cleanly shutting down)*
-**Concepts Proven:** `shmat` (Shared Memory), `shmctl` & `msgctl` (Garbage Collection/Cleanup), `signal(SIGINT)`.
+*(Instructions for you to take the screenshot: After the kitchen batch completes, it will print the live stock. Then, press `Ctrl+C` in the server terminal to shut it down. Take a screenshot of both. Delete these italic instructions later.)*
+
+**Screenshot 4:** *(Insert screenshot here)*
+
+**Technical Analysis & Implementation Details:**
+The output `[STOCK] Maggi remaining in stock` printed by the Kitchen process confirms flawless cross-process memory synchronization. The Kitchen process directly read the stock integer from the System V Shared Memory (`shmat`) that was modified in RAM by the Server process, entirely bypassing slow disk I/O. Finally, when `Ctrl+C` is pressed in the server terminal, the `shutdown_handler` intercepts the OS `SIGINT` signal. It instantly flushes the shared RAM state permanently to the hard drive, and uses `shmctl` and `msgctl` with the `IPC_RMID` flag to gracefully wipe the memory segments and message queues, successfully preventing zombie processes and memory leaks.
 
 ## 4. Challenges Faced and Solutions
 

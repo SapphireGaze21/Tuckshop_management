@@ -105,7 +105,7 @@ int check_and_update_stock(char* item) {
     int success = 0;
     pthread_mutex_lock(&shared_menu->lock);
     for (int i = 0; i < shared_menu->count; i++) {
-        if (strcmp(shared_menu->items[i].name, item) == 0 && strcmp(shared_menu->items[i].category, "PACKAGED") == 0) {
+        if (strcmp(shared_menu->items[i].name, item) == 0 && strcmp(shared_menu->items[i].category, "PACKAGEDFOOD") == 0) {
             if (shared_menu->items[i].quantity > 0) {
                 shared_menu->items[i].quantity--;
                 success = 1;
@@ -176,8 +176,8 @@ void update_order_status(int order_id, char* new_status) {
 int get_msg_type(char* category) {
 
     if (strcmp(category, "MAGGI") == 0) return 1;
-    if (strcmp(category, "DOSA") == 0) return 2;
-    if (strcmp(category, "DRINK") == 0) return 3;
+    if (strcmp(category, "CHINESE") == 0) return 2;
+    if (strcmp(category, "PACKAGEDFOOD") == 0) return 3;
 
     return 4; // OTHER
 }
