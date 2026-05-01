@@ -112,6 +112,7 @@ int main() {
     pid_t logger_pid = fork();
     if (logger_pid == 0) {
         // Child: Logger Process
+        signal(SIGINT, SIG_IGN); // Ignore Ctrl+C so only the parent cleans up!
         close(pipe_fd[1]); // Close write end
         FILE* log_file = fopen("server_logs.txt", "a");
         if (log_file) {
